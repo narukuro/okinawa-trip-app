@@ -34,6 +34,10 @@ let moveCount = 0;
 let startTime = null;
 let timerId = null;
 let solved = false;
+let isDragging = false;
+let idleTimer = null;
+const reduceMotion =
+  window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- 盤面ユーティリティ ---------- */
 
@@ -74,6 +78,20 @@ function freeSteps(p) {
 
 /* ---------- 描画 ---------- */
 
+// 画面の高さに合わせて盤面サイズを決める（上下が見切れないように）
+function fitBoard() {
+  const wrap = boardEl.parentElement; // .board-wrap
+  if (!wrap) return;
+  const availW = wrap.clientWidth;
+  const availH = wrap.clientHeight;
+  if (availW === 0 || availH === 0) return;
+  const reserve = 24; // 「出口」ラベル＋余白ぶん
+  const usableH = Math.max(0, availH - reserve);
+  let w = Math.min(availW, usableH * (COLS / ROWS));
+  w = Math.floor(w);
+  boardEl.style.width = w + "px";
+}
+
 function cellSize() {
   const styles = getComputedStyle(boardEl);
   const pad = parseFloat(styles.paddingLeft);
@@ -98,7 +116,55 @@ function place(p, animate) {
 }
 
 function renderAll(animate) {
+  fitBoard();
   for (const p of pieces) place(p, animate);
+}
+
+/* ---------- 遊び心アニメーション ---------- */
+
+// アニメ用クラスを付け直して再生（連続再生でも確実に発火）
+function replay(el, cls, ms) {
+  if (!el || reduceMotion) return;
+  el.classList.remove(cls);
+  void el.offsetWidth; // リフロー
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+
+// 止まった瞬間のバウンド
+function bounce(el) { replay(el, "settled", 220); }
+
+// 「動きたそう」に震える（詰まったブロックを優先）
+function idleWiggle() {
+  if (reduceMotion || solved || isDragging) return;
+  if (!winOverlay.hidden || !howOverlay.hidden) return;
+  if (document.hidden || pieces.length === 0) return;
+
+  // 各ブロックの「動ける量」を測り、最も詰まっているものを選ぶ（密集＝動きたそう）
+  const scored = pieces.map((p) => {
+    const f = freeSteps(p);
+    return { id: p.id, free: f.up + f.down + f.left + f.right };
+  });
+  const minFree = Math.min(...scored.map((s) => s.free));
+  const stuck = scored.filter((s) => s.free === minFree);
+
+  const pick = stuck[Math.floor(Math.random() * stuck.length)];
+  replay(els[pick.id], "wiggle", 520);
+
+  // たまに隣のブロックも続けて震わせて「群れ」っぽさを出す
+  if (stuck.length > 1 && Math.random() < 0.45) {
+    let other;
+    do { other = stuck[Math.floor(Math.random() * stuck.length)]; }
+    while (other.id === pick.id);
+    setTimeout(() => replay(els[other.id], "wiggle", 520), 90);
+  }
+}
+
+function scheduleIdle() {
+  if (reduceMotion) return;
+  clearTimeout(idleTimer);
+  const delay = 1400 + Math.random() * 1500; // 1.4〜2.9秒ごと
+  idleTimer = setTimeout(() => { idleWiggle(); scheduleIdle(); }, delay);
 }
 
 function buildPieces() {
@@ -132,11 +198,12 @@ function attachDrag(el, p) {
   const onDown = (e) => {
     if (solved) return;
     active = true;
+    isDragging = true;
     axis = null;
     pointerId = e.pointerId;
     el.setPointerCapture(pointerId);
     el.classList.add("dragging");
-    el.classList.remove("snap");
+    el.classList.remove("snap", "wiggle", "settled");
     const cs = cellSize();
     cell = cs.cell; gap = cs.gap;
     startX = e.clientX;
@@ -176,6 +243,7 @@ function attachDrag(el, p) {
   const onUp = () => {
     if (!active) return;
     active = false;
+    isDragging = false;
     el.classList.remove("dragging");
     if (pointerId !== null) {
       try { el.releasePointerCapture(pointerId); } catch (_) {}
@@ -195,6 +263,7 @@ function attachDrag(el, p) {
     place(p, true);
 
     if (moved) {
+      bounce(el); // 止まった瞬間のちょっとしたバウンド
       if (startTime === null) startTimer();
       moveCount++;
       movesEl.textContent = moveCount;
@@ -290,6 +359,7 @@ function reset() {
   timerEl.textContent = "00:00";
   winOverlay.hidden = true;
   buildPieces();
+  scheduleIdle();
 }
 
 /* ---------- 初期化 ---------- */
@@ -305,9 +375,11 @@ document.getElementById("howClose").addEventListener("click", () => {
 
 window.addEventListener("resize", () => renderAll(false));
 window.addEventListener("orientationchange", () => setTimeout(() => renderAll(false), 200));
+window.addEventListener("load", () => renderAll(false)); // フォント反映後などに再フィット
 
 loadBest();
 buildPieces();
+scheduleIdle();
 
 // Service Worker（オフライン対応）
 if ("serviceWorker" in navigator) {
