@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="王将出陣" />
+  <meta name="theme-color" content="#3b2a1a" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>王将出陣 — スライドパズル</title>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="title">王将出陣</h1>
+      <p class="subtitle">王将を下の出口からスライドさせて脱出させよう</p>
+    </header>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">手数</span>
+        <span class="stat-value" id="moves">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">タイム</span>
+        <span class="stat-value" id="timer">00:00</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">ベスト手数</span>
+        <span class="stat-value" id="best">--</span>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <!-- 出口の目印 -->
+        <div class="exit-mark" aria-hidden="true">出口</div>
+        <!-- 駒はJSで生成 -->
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="reset">最初から</button>
+      <button class="btn btn-ghost" id="howto">遊び方</button>
+    </div>
+
+    <footer class="foot">指で駒をスライドして動かせます</footer>
+  </div>
+
+  <!-- クリア演出 -->
+  <div class="overlay" id="winOverlay" hidden>
+    <div class="overlay-card">
+      <div class="overlay-emoji">🎉</div>
+      <h2>出陣成功！</h2>
+      <p class="overlay-stats">
+        <span id="winMoves">0</span> 手 / <span id="winTime">00:00</span>
+      </p>
+      <p class="overlay-note" id="winNote"></p>
+      <button class="btn" id="playAgain">もう一度</button>
+    </div>
+  </div>
+
+  <!-- 遊び方 -->
+  <div class="overlay" id="howOverlay" hidden>
+    <div class="overlay-card overlay-left">
+      <h2>遊び方</h2>
+      <ul class="howto-list">
+        <li>大きな<b>王将</b>（2×2）を盤の<b>下の出口</b>まで動かすとクリアです。</li>
+        <li>駒は空いているマスの方向へ<b>指でスライド</b>して動かします。</li>
+        <li>駒は盤の外には出せません（王将が出口に到達したらクリア）。</li>
+        <li>飛車・角行は縦2マス、銀将は横2マス、金将は1マスです。</li>
+      </ul>
+      <button class="btn" id="howClose">とじる</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
