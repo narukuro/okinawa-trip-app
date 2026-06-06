@@ -1,14 +1,14 @@
 {
-  "name": "将棋スライドパズル",
-  "short_name": "将棋スライドパズル",
-  "description": "王将を出口からスライドさせて脱出させる将棋テーマのスライドパズル",
+  "name": "あかブロック脱出",
+  "short_name": "あかブロック脱出",
+  "description": "赤いブロックを出口からスライドさせて脱出させるミニマルなスライドパズル",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#16201a",
-  "theme_color": "#3b2a1a",
+  "background_color": "#F4F1E9",
+  "theme_color": "#F4F1E9",
   "icons": [
     {
       "src": "icon-192.png",

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>あかブロック脱出 — デザイン案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'M PLUS Rounded 1c', sans-serif; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="game-screens.jsx"></script>
+<script type="text/babel">
+  const PW = 340, PH = 752;
+
+  function Phone({ children }) {
+    return (
+      <div style={{ width: PW, height: PH, borderRadius: 34, overflow: "hidden",
+        background: "#F4F1E9", boxShadow: "0 1px 0 rgba(255,255,255,0.6) inset" }}>
+        {children}
+      </div>
+    );
+  }
+
+  function App() {
+    return (
+      <DesignCanvas>
+        <DCSection id="intro" title="あかブロック脱出 — リデザイン3案"
+          subtitle="Anthropic風の生成り+コーラル配色。彩度を抑えてコーラルの主役が映える、丸い日本語フォントで“スイカゲームくらい可愛い”トーンに。">
+          <DCArtboard id="a" label="案A · ミニマル(顔なし)" width={PW} height={PH}>
+            <Phone><GameScreen variant="minimal" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="b" label="案B · かわいい顔つき" width={PW} height={PH}>
+            <Phone><GameScreen variant="face" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="c" label="案C · やわらか木のニュアンス" width={PW} height={PH}>
+            <Phone><GameScreen variant="wood" /></Phone>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
