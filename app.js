@@ -1,24 +1,26 @@
-/* 王将出陣 — 箱入り娘（クロツキ）型スライドパズル */
+/* あかブロック脱出 — 箱入り娘（クロツキ）型スライドパズル */
 
 const COLS = 4;
 const ROWS = 5;
 
 // 初期配置（左上を r=0, c=0 とする）
 // w,h はマス数。cls は見た目クラス。
+// 色だけのオリジナル配置（将棋駒名は使わない）
+// 赤の大ブロック（2×2）を下の出口から脱出させるのが目的。
 const INITIAL = [
-  { id: "king", label: "王將", cls: "king", r: 0, c: 1, w: 2, h: 2 },
-  { id: "hi1",  label: "飛車", cls: "tall", r: 0, c: 0, w: 1, h: 2 },
-  { id: "hi2",  label: "飛車", cls: "tall", r: 0, c: 3, w: 1, h: 2 },
-  { id: "ka1",  label: "角行", cls: "tall", r: 2, c: 0, w: 1, h: 2 },
-  { id: "ka2",  label: "角行", cls: "tall", r: 2, c: 3, w: 1, h: 2 },
-  { id: "gin",  label: "銀將", cls: "wide", r: 2, c: 1, w: 2, h: 1 },
-  { id: "ki1",  label: "金", cls: "small", r: 3, c: 1, w: 1, h: 1 },
-  { id: "ki2",  label: "金", cls: "small", r: 3, c: 2, w: 1, h: 1 },
-  { id: "ki3",  label: "金", cls: "small", r: 4, c: 0, w: 1, h: 1 },
-  { id: "ki4",  label: "金", cls: "small", r: 4, c: 3, w: 1, h: 1 },
+  { id: "red",   cls: "king", r: 0, c: 1, w: 2, h: 2 },
+  { id: "blue1", cls: "tall", r: 0, c: 0, w: 1, h: 2 },
+  { id: "blue2", cls: "tall", r: 0, c: 3, w: 1, h: 2 },
+  { id: "blue3", cls: "tall", r: 2, c: 0, w: 1, h: 2 },
+  { id: "blue4", cls: "tall", r: 2, c: 3, w: 1, h: 2 },
+  { id: "green", cls: "wide", r: 2, c: 1, w: 2, h: 1 },
+  { id: "y1",    cls: "small", r: 3, c: 1, w: 1, h: 1 },
+  { id: "y2",    cls: "small", r: 3, c: 2, w: 1, h: 1 },
+  { id: "y3",    cls: "small", r: 4, c: 0, w: 1, h: 1 },
+  { id: "y4",    cls: "small", r: 4, c: 3, w: 1, h: 1 },
 ];
 
-// 勝利条件：王将（2×2）が下中央に到達（r=3, c=1 で行3-4・列1-2を占有）
+// 勝利条件：赤ブロック（2×2）が下中央に到達（r=3, c=1 で行3-4・列1-2を占有）
 const WIN = { r: 3, c: 1 };
 
 const boardEl = document.getElementById("board");
@@ -108,10 +110,13 @@ function buildPieces() {
     const el = document.createElement("div");
     el.className = "piece " + p.cls;
     el.dataset.id = p.id;
-    const lbl = document.createElement("span");
-    lbl.className = "label";
-    lbl.textContent = p.label;
-    el.appendChild(lbl);
+    if (p.id === "red") {
+      // 脱出させる赤ブロックには下向きの矢印を表示（言葉に頼らない目印）
+      const lbl = document.createElement("span");
+      lbl.className = "label";
+      lbl.textContent = "▼";
+      el.appendChild(lbl);
+    }
     boardEl.appendChild(el);
     els[p.id] = el;
     attachDrag(el, p);
@@ -235,7 +240,7 @@ function elapsedSec() {
 }
 
 function checkWin() {
-  const king = pieces.find((p) => p.id === "king");
+  const king = pieces.find((p) => p.id === "red");
   if (king.r === WIN.r && king.c === WIN.c) {
     solved = true;
     stopTimer();
@@ -275,7 +280,7 @@ function showWin() {
   const best = loadBest();
   const note = (best !== null && moveCount <= best)
     ? "🏆 自己ベスト更新！"
-    : "お見事！王将が出陣しました。";
+    : "お見事！赤ブロックが脱出しました。";
   document.getElementById("winNote").textContent = note;
   winOverlay.hidden = false;
 }

@@ -1,4 +1,4 @@
-const CACHE = "oushou-v1";
+const CACHE = "akablock-v2";
 const ASSETS = [
   "./",
   "./index.html",
