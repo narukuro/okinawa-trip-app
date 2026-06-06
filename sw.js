@@ -1,4 +1,4 @@
-const CACHE = "akablock-v2";
+const CACHE = "shogi-slide-v3";
 const ASSETS = [
   "./",
   "./index.html",

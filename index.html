@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="あかブロック脱出" />
+  <meta name="apple-mobile-web-app-title" content="将棋スライドパズル" />
   <meta name="theme-color" content="#3b2a1a" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-180.png" />
   <link rel="stylesheet" href="style.css" />
-  <title>あかブロック脱出 — スライドパズル</title>
+  <title>将棋スライドパズル</title>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <h1 class="title">あかブロック脱出</h1>
-      <p class="subtitle">赤いブロックを下の出口からスライドさせて脱出させよう</p>
+      <h1 class="title">将棋スライドパズル</h1>
+      <p class="subtitle">王将を下の出口からスライドさせて脱出させよう</p>
     </header>
 
     <div class="stats">
@@ -47,14 +47,14 @@
       <button class="btn btn-ghost" id="howto">遊び方</button>
     </div>
 
-    <footer class="foot">指でブロックをスライドして動かせます</footer>
+    <footer class="foot">指で駒をスライドして動かせます</footer>
   </div>
 
   <!-- クリア演出 -->
   <div class="overlay" id="winOverlay" hidden>
     <div class="overlay-card">
       <div class="overlay-emoji">🎉</div>
-      <h2>脱出成功！</h2>
+      <h2>王将脱出！</h2>
       <p class="overlay-stats">
         <span id="winMoves">0</span> 手 / <span id="winTime">00:00</span>
       </p>
@@ -68,10 +68,10 @@
     <div class="overlay-card overlay-left">
       <h2>遊び方</h2>
       <ul class="howto-list">
-        <li>大きな<b>赤いブロック</b>（2×2）を盤の<b>下の出口</b>まで動かすとクリアです。</li>
-        <li>ブロックは空いているマスの方向へ<b>指でスライド</b>して動かします。</li>
-        <li>ブロックは盤の外には出せません（赤が出口に到達したらクリア）。</li>
-        <li>青は縦2マス、緑は横2マス、黄は1マスのブロックです。</li>
+        <li>大きな<b>王将</b>（赤・2×2）を盤の<b>下の出口</b>まで動かすとクリアです。</li>
+        <li>駒は空いているマスの方向へ<b>指でスライド</b>して動かします。</li>
+        <li>駒は盤の外には出せません（王将が出口に到達したらクリア）。</li>
+        <li>飛車・角行（青）は縦2マス、銀将（緑）は横2マス、金（黄）は1マスです。</li>
       </ul>
       <button class="btn" id="howClose">とじる</button>
     </div>

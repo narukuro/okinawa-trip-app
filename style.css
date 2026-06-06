@@ -7,10 +7,10 @@
   --wood-dark: #5a3d23;
   --wood-mid: #7a5230;
   --frame: #3b2a1a;
-  --piece-king: linear-gradient(160deg, #ff6b5e, #e23b2e);
-  --piece-tall: linear-gradient(160deg, #6db0ff, #2f7fe0);
-  --piece-wide: linear-gradient(160deg, #6fdca0, #2bae6a);
-  --piece-small: linear-gradient(160deg, #ffd96b, #efb022);
+  --piece-king: linear-gradient(160deg, #f0c860, #d99a2b);
+  --piece-tall: linear-gradient(160deg, #f3ddb0, #d8b277);
+  --piece-wide: linear-gradient(160deg, #f3ddb0, #d8b277);
+  --piece-small: linear-gradient(160deg, #f6e7c8, #e3c794);
   --ink: #3a2410;
 }
 
@@ -136,12 +136,12 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.18);
+  border: 1px solid rgba(120,80,30,0.6);
   box-shadow:
-    0 4px 0 rgba(0,0,0,0.28),
+    0 4px 0 rgba(120,80,30,0.55),
     0 7px 12px rgba(0,0,0,0.35),
-    inset 0 1px 2px rgba(255,255,255,0.45);
-  color: #fff;
+    inset 0 1px 2px rgba(255,255,255,0.5);
+  color: var(--ink);
   font-weight: 800;
   cursor: grab;
   will-change: transform;
@@ -159,24 +159,34 @@ body {
 .piece.snap { transition: left 0.12s ease-out, top 0.12s ease-out; }
 
 .piece .label {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
   pointer-events: none;
-  line-height: 1;
-  color: rgba(255,255,255,0.92);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
 }
 
-/* 脱出させる赤ブロック（2×2） */
-.piece.king { background: var(--piece-king); }
-.piece.king .label { font-size: clamp(26px, 9vw, 46px); font-weight: 900; }
+/* 王将（2×2） */
+.piece.king {
+  background: var(--piece-king);
+  border-color: #b9831f;
+}
+.piece.king .label { font-size: clamp(22px, 8.5vw, 40px); font-weight: 900; }
 
-/* 縦長＝青 */
+/* 飛車・角行（縦2マス） */
 .piece.tall { background: var(--piece-tall); }
+.piece.tall .label { font-size: clamp(15px, 5.4vw, 26px); }
 
-/* 横長＝緑 */
+/* 銀将（横2マス） */
 .piece.wide { background: var(--piece-wide); }
+.piece.wide .label {
+  writing-mode: horizontal-tb;
+  font-size: clamp(15px, 5.4vw, 26px);
+}
 
-/* 1マス＝黄 */
+/* 金（1マス） */
 .piece.small { background: var(--piece-small); }
+.piece.small .label { font-size: clamp(13px, 4.6vw, 22px); }
 
 .controls {
   display: flex;
