@@ -19,12 +19,12 @@
   <div class="app">
     <header class="topbar">
       <h1 class="title">あかブロック脱出</h1>
-      <p class="subtitle">赤いブロックを下の出口からスライドさせよう</p>
+      <p class="subtitle">下の出口からブロックを出そう！出すほどスコアアップ</p>
     </header>
 
     <div class="stats">
       <div class="stat">
-        <span class="stat-label">手数</span>
+        <span class="stat-label">スコア</span>
         <span class="stat-value accent" id="moves">0</span>
       </div>
       <div class="stat">
@@ -49,16 +49,16 @@
       <button class="btn btn-ghost" id="howto">遊び方</button>
     </div>
 
-    <footer class="foot">指でブロックをスライドして動かせます</footer>
+    <footer class="foot">指でブロックをスライド、下の出口から出そう</footer>
   </div>
 
-  <!-- クリア演出 -->
+  <!-- ゲームオーバー -->
   <div class="overlay" id="winOverlay" hidden>
     <div class="overlay-card">
-      <div class="overlay-emoji">🎉</div>
-      <h2>脱出成功！</h2>
+      <div class="overlay-emoji">🎯</div>
+      <h2>ゲームオーバー</h2>
       <p class="overlay-stats">
-        <span id="winMoves">0</span> 手 / <span id="winTime">00:00</span>
+        スコア <span id="winMoves">0</span> ／ タイム <span id="winTime">00:00</span>
       </p>
       <p class="overlay-note" id="winNote"></p>
       <button class="btn" id="playAgain">もう一度</button>
@@ -70,10 +70,10 @@
     <div class="overlay-card overlay-left">
       <h2>遊び方</h2>
       <ul class="howto-list">
-        <li>大きな<b>赤いブロック</b>（2×2）を盤の<b>下の出口</b>まで動かすとクリアです。</li>
-        <li>ブロックは空いているマスの方向へ<b>指でスライド</b>して動かします。</li>
-        <li>ブロックは盤の外には出せません（赤が出口に到達したらクリア）。</li>
-        <li>青は縦2マス、緑は横2マス、黄（砂色）は1マスのブロックです。</li>
+        <li>盤の<b>下・中央の出口</b>へブロックをスライドさせて<b>外に出す</b>とスコア+1。</li>
+        <li>出すたびに<b>新しいブロックが上から誕生</b>。時間とともにも増えていきます。</li>
+        <li>端のブロックは中央に寄せてから出口へ送り出しましょう。</li>
+        <li><b>上の段がいっぱいになるとゲームオーバー</b>。ハイスコアを目指そう！</li>
       </ul>
       <button class="btn" id="howClose">とじる</button>
     </div>

@@ -1,4 +1,4 @@
-const CACHE = "akablock-min-v4";
+const CACHE = "akablock-endless-v5";
 const ASSETS = [
   "./",
   "./index.html",

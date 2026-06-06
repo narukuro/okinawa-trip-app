@@ -1,48 +1,39 @@
-/* あかブロック脱出 — 箱入り娘（クロツキ）型スライドパズル */
+/* あかブロック脱出 — エンドレス版（出口から出すほどスコアアップ） */
 
-const COLS = 4;
-const ROWS = 5;
-
-// 初期配置（左上を r=0, c=0 とする）
-// w,h はマス数。cls は見た目クラス。
-// ミニマル配色（生成り＋コーラル）。色だけで主役を示す（漢字・記号なし）。
-// 主役＝コーラルの大ブロック(2×2)を下の出口から脱出させるのが目的。
-const INITIAL = [
-  { id: "red",   cls: "king", r: 0, c: 1, w: 2, h: 2 },
-  { id: "blue1", cls: "tall", r: 0, c: 0, w: 1, h: 2 },
-  { id: "blue2", cls: "tall", r: 0, c: 3, w: 1, h: 2 },
-  { id: "blue3", cls: "tall", r: 2, c: 0, w: 1, h: 2 },
-  { id: "blue4", cls: "tall", r: 2, c: 3, w: 1, h: 2 },
-  { id: "green", cls: "wide", r: 2, c: 1, w: 2, h: 1 },
-  { id: "y1",    cls: "small", r: 3, c: 1, w: 1, h: 1 },
-  { id: "y2",    cls: "small", r: 3, c: 2, w: 1, h: 1 },
-  { id: "y3",    cls: "small", r: 4, c: 0, w: 1, h: 1 },
-  { id: "y4",    cls: "small", r: 4, c: 3, w: 1, h: 1 },
+const COLS = 5;
+const ROWS = 6;
+const EXIT = [1, 2, 3];                 // 盤の下・中央3列が出口
+const COLORS = ["c-coral", "c-blue", "c-green", "c-sand"];
+// 出現するブロックの形（w=横, h=縦, wt=出やすさの重み）
+const SIZES = [
+  { w: 1, h: 1, wt: 4 },
+  { w: 1, h: 2, wt: 3 },
+  { w: 2, h: 1, wt: 3 },
+  { w: 2, h: 2, wt: 1 },
 ];
 
-// 勝利条件：主役（2×2）が下中央に到達（r=3, c=1 で行3-4・列1-2を占有）
-const WIN = { r: 3, c: 1 };
-
 const boardEl = document.getElementById("board");
-const movesEl = document.getElementById("moves");
+const scoreEl = document.getElementById("moves");
 const timerEl = document.getElementById("timer");
 const bestEl  = document.getElementById("best");
 
 let pieces = [];
-let els = {};        // id -> element
-let moveCount = 0;
+let els = {};
+let uid = 0;
+let score = 0;
 let startTime = null;
 let timerId = null;
-let solved = false;
-let isDragging = false;
+let spawnTimer = null;
+let spawnEvery = 3800;                   // 自動出現の間隔（だんだん短く）
 let idleTimer = null;
+let status = "playing";                  // 'playing' | 'over'
+let isDragging = false;
 const reduceMotion =
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- 盤面ユーティリティ ---------- */
 
 function buildGrid(exclude) {
-  // 占有グリッド（true=埋まっている）。exclude のIDは無視。
   const g = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
   for (const p of pieces) {
     if (p.id === exclude) continue;
@@ -61,7 +52,14 @@ function canPlace(p, r, c, grid) {
   return true;
 }
 
-// ある駒が各方向へ何マス自由に動けるか
+function fitsAt(grid, r, c, w, h) {
+  if (r < 0 || c < 0 || r + h > ROWS || c + w > COLS) return false;
+  for (let dr = 0; dr < h; dr++)
+    for (let dc = 0; dc < w; dc++)
+      if (grid[r + dr][c + dc]) return false;
+  return true;
+}
+
 function freeSteps(p) {
   const grid = buildGrid(p.id);
   const res = { up: 0, down: 0, left: 0, right: 0 };
@@ -76,26 +74,37 @@ function freeSteps(p) {
   return res;
 }
 
+// 出口から出せる状態か（最下段にあり、占有列がすべて出口の中）
+function canExit(p) {
+  if (p.r + p.h !== ROWS) return false;
+  for (let dc = 0; dc < p.w; dc++) if (!EXIT.includes(p.c + dc)) return false;
+  return true;
+}
+
+function weightedSize() {
+  const pool = [];
+  SIZES.forEach((s) => { for (let i = 0; i < s.wt; i++) pool.push(s); });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /* ---------- 描画 ---------- */
 
-// 画面の高さに合わせて盤面サイズを決める（上下が見切れないように）
 function fitBoard() {
-  const wrap = boardEl.parentElement; // .board-wrap
+  const wrap = boardEl.parentElement;
   if (!wrap) return;
   const availW = wrap.clientWidth;
   const availH = wrap.clientHeight;
   if (availW === 0 || availH === 0) return;
-  const reserve = 24; // 「出口」ラベル＋余白ぶん
+  const reserve = 24;
   const usableH = Math.max(0, availH - reserve);
   let w = Math.min(availW, usableH * (COLS / ROWS));
-  w = Math.floor(w);
-  boardEl.style.width = w + "px";
+  boardEl.style.width = Math.floor(w) + "px";
 }
 
 function cellSize() {
   const styles = getComputedStyle(boardEl);
   const pad = parseFloat(styles.paddingLeft);
-  const gap = parseFloat(styles.getPropertyValue("--gap")) || 6;
+  const gap = parseFloat(styles.getPropertyValue("--gap")) || 4;
   const innerW = boardEl.clientWidth - pad * 2;
   const cell = (innerW - gap * (COLS - 1)) / COLS;
   return { cell, gap, pad };
@@ -103,16 +112,13 @@ function cellSize() {
 
 function place(p, animate) {
   const el = els[p.id];
+  if (!el) return;
   const { cell, gap, pad } = cellSize();
-  const x = pad + p.c * (cell + gap);
-  const y = pad + p.r * (cell + gap);
-  const w = p.w * cell + (p.w - 1) * gap;
-  const h = p.h * cell + (p.h - 1) * gap;
-  el.style.width = w + "px";
-  el.style.height = h + "px";
+  el.style.width = p.w * cell + (p.w - 1) * gap + "px";
+  el.style.height = p.h * cell + (p.h - 1) * gap + "px";
   el.classList.toggle("snap", !!animate);
-  el.style.left = x + "px";
-  el.style.top = y + "px";
+  el.style.left = pad + p.c * (cell + gap) + "px";
+  el.style.top = pad + p.r * (cell + gap) + "px";
 }
 
 function renderAll(animate) {
@@ -120,38 +126,193 @@ function renderAll(animate) {
   for (const p of pieces) place(p, animate);
 }
 
+function addPieceEl(p, spawning) {
+  const el = document.createElement("div");
+  el.className = "piece " + p.color + (spawning && !reduceMotion ? " spawning" : "");
+  el.dataset.id = p.id;
+  boardEl.appendChild(el);
+  els[p.id] = el;
+  attachDrag(el, p);
+  if (spawning) setTimeout(() => el.classList.remove("spawning"), 240);
+}
+
+/* ---------- 出現・脱出 ---------- */
+
+// 上段（row 0）に新しいブロックを1つ出す。置けなければ false（＝ゲームオーバー条件）
+function spawnAttempt() {
+  const grid = buildGrid();
+  const pool = [];
+  SIZES.forEach((s) => { for (let i = 0; i < s.wt; i++) pool.push(s); });
+  pool.sort(() => Math.random() - 0.5);
+  for (const s of pool) {
+    const cands = [];
+    for (let c = 0; c + s.w <= COLS; c++) if (fitsAt(grid, 0, c, s.w, s.h)) cands.push(c);
+    if (cands.length) {
+      const c = cands[Math.floor(Math.random() * cands.length)];
+      const p = {
+        id: "b" + uid++, c, r: 0, w: s.w, h: s.h,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      };
+      pieces.push(p);
+      addPieceEl(p, true);
+      place(p, false);
+      return true;
+    }
+  }
+  return false;
+}
+
+function seedInitial(n) {
+  for (let k = 0; k < n; k++) {
+    const grid = buildGrid();
+    const s = weightedSize();
+    const cands = [];
+    for (let r = 1; r + s.h <= ROWS; r++)
+      for (let c = 0; c + s.w <= COLS; c++)
+        if (fitsAt(grid, r, c, s.w, s.h)) cands.push({ r, c });
+    if (!cands.length) continue;
+    const { r, c } = cands[Math.floor(Math.random() * cands.length)];
+    const p = {
+      id: "b" + uid++, c, r, w: s.w, h: s.h,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    };
+    pieces.push(p);
+    addPieceEl(p, false);
+    place(p, false);
+  }
+}
+
+function eject(p) {
+  const el = els[p.id];
+  pieces = pieces.filter((x) => x.id !== p.id);
+  if (el) {
+    el.classList.add("exiting");
+    setTimeout(() => { el.remove(); }, 280);
+  }
+  delete els[p.id];
+
+  score++;
+  scoreEl.textContent = score;
+  replay(scoreEl, "pop", 260);
+
+  // 出すたびに新しいブロックが生まれる
+  if (!spawnAttempt()) gameOver();
+}
+
+/* ---------- ドラッグ操作 ---------- */
+
+function attachDrag(el, p) {
+  let active = false;
+  let axis = null;
+  let startX = 0, startY = 0;
+  let baseLeft = 0, baseTop = 0;
+  let limits = null, exitable = false;
+  let cell = 0, gap = 0;
+  let pointerId = null;
+
+  const onDown = (e) => {
+    if (status !== "playing") return;
+    active = true; isDragging = true; axis = null;
+    pointerId = e.pointerId;
+    el.setPointerCapture(pointerId);
+    el.classList.add("dragging");
+    el.classList.remove("snap", "wiggle", "settled");
+    const cs = cellSize();
+    cell = cs.cell; gap = cs.gap;
+    startX = e.clientX; startY = e.clientY;
+    baseLeft = parseFloat(el.style.left);
+    baseTop = parseFloat(el.style.top);
+    limits = freeSteps(p);
+    exitable = canExit(p);
+  };
+
+  const onMove = (e) => {
+    if (!active) return;
+    e.preventDefault();
+    let dx = e.clientX - startX;
+    let dy = e.clientY - startY;
+    if (!axis) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    const step = cell + gap;
+    if (axis === "x") {
+      dx = Math.max(-limits.left * step, Math.min(limits.right * step, dx));
+      el.style.left = baseLeft + dx + "px";
+      el.style.top = baseTop + "px";
+    } else {
+      let max = limits.down * step;
+      if (exitable) max += step * 1.15;          // 出口へ引き出す余地
+      dy = Math.max(-limits.up * step, Math.min(max, dy));
+      el.style.top = baseTop + dy + "px";
+      el.style.left = baseLeft + "px";
+    }
+  };
+
+  const onUp = () => {
+    if (!active) return;
+    active = false; isDragging = false;
+    el.classList.remove("dragging");
+    if (pointerId !== null) {
+      try { el.releasePointerCapture(pointerId); } catch (_) {}
+      pointerId = null;
+    }
+
+    const step = cell + gap;
+    // 出口から引き出した？
+    if (exitable && axis === "y") {
+      const dyNow = parseFloat(el.style.top) - baseTop;
+      if (dyNow > step * 0.5) {
+        if (startTime === null) startTimer();
+        eject(p);
+        return;
+      }
+    }
+
+    const { pad } = cellSize();
+    let newC = Math.round((parseFloat(el.style.left) - pad) / step);
+    let newR = Math.round((parseFloat(el.style.top) - pad) / step);
+    newC = Math.max(0, Math.min(COLS - p.w, newC));
+    newR = Math.max(0, Math.min(ROWS - p.h, newR));
+    const moved = newR !== p.r || newC !== p.c;
+    p.r = newR; p.c = newC;
+    place(p, true);
+    if (moved) {
+      bounce(el);
+      if (startTime === null) startTimer();
+    }
+  };
+
+  el.addEventListener("pointerdown", onDown);
+  el.addEventListener("pointermove", onMove);
+  el.addEventListener("pointerup", onUp);
+  el.addEventListener("pointercancel", onUp);
+}
+
 /* ---------- 遊び心アニメーション ---------- */
 
-// アニメ用クラスを付け直して再生（連続再生でも確実に発火）
 function replay(el, cls, ms) {
   if (!el || reduceMotion) return;
   el.classList.remove(cls);
-  void el.offsetWidth; // リフロー
+  void el.offsetWidth;
   el.classList.add(cls);
   setTimeout(() => el.classList.remove(cls), ms);
 }
 
-// 止まった瞬間のバウンド
 function bounce(el) { replay(el, "settled", 220); }
 
-// 「動きたそう」に震える（詰まったブロックを優先）
 function idleWiggle() {
-  if (reduceMotion || solved || isDragging) return;
-  if (!winOverlay.hidden || !howOverlay.hidden) return;
+  if (reduceMotion || status !== "playing" || isDragging) return;
+  if (!overlay.hidden || !howOverlay.hidden) return;
   if (document.hidden || pieces.length === 0) return;
-
-  // 各ブロックの「動ける量」を測り、最も詰まっているものを選ぶ（密集＝動きたそう）
   const scored = pieces.map((p) => {
     const f = freeSteps(p);
     return { id: p.id, free: f.up + f.down + f.left + f.right };
   });
   const minFree = Math.min(...scored.map((s) => s.free));
   const stuck = scored.filter((s) => s.free === minFree);
-
   const pick = stuck[Math.floor(Math.random() * stuck.length)];
   replay(els[pick.id], "wiggle", 520);
-
-  // たまに隣のブロックも続けて震わせて「群れ」っぽさを出す
   if (stuck.length > 1 && Math.random() < 0.45) {
     let other;
     do { other = stuck[Math.floor(Math.random() * stuck.length)]; }
@@ -163,225 +324,110 @@ function idleWiggle() {
 function scheduleIdle() {
   if (reduceMotion) return;
   clearTimeout(idleTimer);
-  const delay = 1400 + Math.random() * 1500; // 1.4〜2.9秒ごと
-  idleTimer = setTimeout(() => { idleWiggle(); scheduleIdle(); }, delay);
+  idleTimer = setTimeout(() => { idleWiggle(); scheduleIdle(); },
+    1400 + Math.random() * 1500);
 }
 
-function buildPieces() {
-  // 既存の駒要素を消す
-  boardEl.querySelectorAll(".piece").forEach((n) => n.remove());
-  els = {};
-  pieces = INITIAL.map((p) => ({ ...p }));
-  for (const p of pieces) {
-    const el = document.createElement("div");
-    el.className = "piece " + p.cls;
-    el.dataset.id = p.id;
-    // 色だけで区別（漢字・記号なし）。上部の淡いハイライトはCSS ::before で描画。
-    boardEl.appendChild(el);
-    els[p.id] = el;
-    attachDrag(el, p);
-  }
-  renderAll(false);
+/* ---------- 自動出現タイマー ---------- */
+
+function scheduleSpawn() {
+  clearTimeout(spawnTimer);
+  spawnTimer = setTimeout(() => {
+    if (status !== "playing") return;
+    if (!spawnAttempt()) { gameOver(); return; }
+    spawnEvery = Math.max(1700, spawnEvery - 120);
+    scheduleSpawn();
+  }, spawnEvery);
 }
 
-/* ---------- ドラッグ操作 ---------- */
-
-function attachDrag(el, p) {
-  let active = false;
-  let axis = null;          // 'x' | 'y'
-  let startX = 0, startY = 0;
-  let baseLeft = 0, baseTop = 0;
-  let limits = null;
-  let cell = 0, gap = 0;
-  let pointerId = null;
-
-  const onDown = (e) => {
-    if (solved) return;
-    active = true;
-    isDragging = true;
-    axis = null;
-    pointerId = e.pointerId;
-    el.setPointerCapture(pointerId);
-    el.classList.add("dragging");
-    el.classList.remove("snap", "wiggle", "settled");
-    const cs = cellSize();
-    cell = cs.cell; gap = cs.gap;
-    startX = e.clientX;
-    startY = e.clientY;
-    baseLeft = parseFloat(el.style.left);
-    baseTop = parseFloat(el.style.top);
-    limits = freeSteps(p);
-  };
-
-  const onMove = (e) => {
-    if (!active) return;
-    e.preventDefault();
-    let dx = e.clientX - startX;
-    let dy = e.clientY - startY;
-
-    if (!axis) {
-      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-      axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
-    }
-
-    const step = cell + gap;
-    if (axis === "x") {
-      const min = -limits.left * step;
-      const max = limits.right * step;
-      dx = Math.max(min, Math.min(max, dx));
-      el.style.left = baseLeft + dx + "px";
-      el.style.top = baseTop + "px";
-    } else {
-      const min = -limits.up * step;
-      const max = limits.down * step;
-      dy = Math.max(min, Math.min(max, dy));
-      el.style.top = baseTop + dy + "px";
-      el.style.left = baseLeft + "px";
-    }
-  };
-
-  const onUp = () => {
-    if (!active) return;
-    active = false;
-    isDragging = false;
-    el.classList.remove("dragging");
-    if (pointerId !== null) {
-      try { el.releasePointerCapture(pointerId); } catch (_) {}
-      pointerId = null;
-    }
-
-    const step = cell + gap;
-    const curLeft = parseFloat(el.style.left);
-    const curTop = parseFloat(el.style.top);
-    const { pad } = cellSize();
-    const newC = Math.round((curLeft - pad) / step);
-    const newR = Math.round((curTop - pad) / step);
-
-    const moved = newR !== p.r || newC !== p.c;
-    p.r = newR;
-    p.c = newC;
-    place(p, true);
-
-    if (moved) {
-      bounce(el); // 止まった瞬間のちょっとしたバウンド
-      if (startTime === null) startTimer();
-      moveCount++;
-      movesEl.textContent = moveCount;
-      checkWin();
-    }
-  };
-
-  el.addEventListener("pointerdown", onDown);
-  el.addEventListener("pointermove", onMove);
-  el.addEventListener("pointerup", onUp);
-  el.addEventListener("pointercancel", onUp);
-}
-
-/* ---------- タイマー・勝敗 ---------- */
+/* ---------- タイマー ---------- */
 
 function fmt(sec) {
   const m = Math.floor(sec / 60).toString().padStart(2, "0");
   const s = (sec % 60).toString().padStart(2, "0");
   return `${m}:${s}`;
 }
-
 function startTimer() {
   startTime = Date.now();
   timerId = setInterval(() => {
-    const sec = Math.floor((Date.now() - startTime) / 1000);
-    timerEl.textContent = fmt(sec);
+    timerEl.textContent = fmt(Math.floor((Date.now() - startTime) / 1000));
   }, 250);
 }
+function stopTimer() { if (timerId) clearInterval(timerId); timerId = null; }
+function elapsedSec() { return startTime ? Math.floor((Date.now() - startTime) / 1000) : 0; }
 
-function stopTimer() {
-  if (timerId) clearInterval(timerId);
-  timerId = null;
-}
+/* ---------- ベストスコア ---------- */
 
-function elapsedSec() {
-  return startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-}
-
-function checkWin() {
-  const king = pieces.find((p) => p.id === "red");
-  if (king.r === WIN.r && king.c === WIN.c) {
-    solved = true;
-    stopTimer();
-    saveBest();
-    showWin();
-  }
-}
-
-/* ---------- ベスト記録 ---------- */
-
-const BEST_KEY = "oushou_best_moves";
-
+const BEST_KEY = "akablock_best_score";
 function loadBest() {
   const v = localStorage.getItem(BEST_KEY);
   bestEl.textContent = v ? v : "--";
   return v ? parseInt(v, 10) : null;
 }
-
 function saveBest() {
   const prev = loadBest();
-  if (prev === null || moveCount < prev) {
-    localStorage.setItem(BEST_KEY, String(moveCount));
-    bestEl.textContent = moveCount;
+  if (prev === null || score > prev) {
+    localStorage.setItem(BEST_KEY, String(score));
+    bestEl.textContent = score;
     return true;
   }
   return false;
 }
 
-/* ---------- オーバーレイ ---------- */
+/* ---------- ゲームオーバー ---------- */
 
-const winOverlay = document.getElementById("winOverlay");
+const overlay = document.getElementById("winOverlay");
 const howOverlay = document.getElementById("howOverlay");
 
-function showWin() {
-  document.getElementById("winMoves").textContent = moveCount;
+function gameOver() {
+  if (status === "over") return;
+  status = "over";
+  stopTimer();
+  clearTimeout(spawnTimer);
+  clearTimeout(idleTimer);
+  const isBest = saveBest();
+  document.getElementById("winMoves").textContent = score;
   document.getElementById("winTime").textContent = fmt(elapsedSec());
-  const best = loadBest();
-  const note = (best !== null && moveCount <= best)
-    ? "🏆 自己ベスト更新！"
-    : "お見事！ブロックが脱出しました。";
-  document.getElementById("winNote").textContent = note;
-  winOverlay.hidden = false;
+  document.getElementById("winNote").textContent =
+    isBest ? "🏆 自己ベスト更新！" : "ナイスプレイ！もう一度挑戦しよう。";
+  overlay.hidden = false;
 }
 
-/* ---------- リセット ---------- */
+/* ---------- 新規ゲーム ---------- */
 
-function reset() {
+function newGame() {
   stopTimer();
-  startTime = null;
-  moveCount = 0;
-  solved = false;
-  movesEl.textContent = "0";
+  clearTimeout(spawnTimer);
+  clearTimeout(idleTimer);
+  boardEl.querySelectorAll(".piece").forEach((n) => n.remove());
+  pieces = []; els = {}; uid = 0;
+  score = 0; startTime = null;
+  spawnEvery = 3800;
+  status = "playing";
+  scoreEl.textContent = "0";
   timerEl.textContent = "00:00";
-  winOverlay.hidden = true;
-  buildPieces();
+  overlay.hidden = true;
+  fitBoard();
+  seedInitial(7);
+  startTimer();
+  scheduleSpawn();
   scheduleIdle();
 }
 
 /* ---------- 初期化 ---------- */
 
-document.getElementById("reset").addEventListener("click", reset);
-document.getElementById("playAgain").addEventListener("click", reset);
-document.getElementById("howto").addEventListener("click", () => {
-  howOverlay.hidden = false;
-});
-document.getElementById("howClose").addEventListener("click", () => {
-  howOverlay.hidden = true;
-});
+document.getElementById("reset").addEventListener("click", newGame);
+document.getElementById("playAgain").addEventListener("click", newGame);
+document.getElementById("howto").addEventListener("click", () => { howOverlay.hidden = false; });
+document.getElementById("howClose").addEventListener("click", () => { howOverlay.hidden = true; });
 
 window.addEventListener("resize", () => renderAll(false));
 window.addEventListener("orientationchange", () => setTimeout(() => renderAll(false), 200));
-window.addEventListener("load", () => renderAll(false)); // フォント反映後などに再フィット
+window.addEventListener("load", () => renderAll(false));
 
 loadBest();
-buildPieces();
-scheduleIdle();
+newGame();
 
-// Service Worker（オフライン対応）
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {});

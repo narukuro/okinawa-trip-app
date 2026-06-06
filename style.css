@@ -1,6 +1,6 @@
 :root {
-  --board-cols: 4;
-  --board-rows: 5;
+  --board-cols: 5;
+  --board-rows: 6;
   --gap: 4px;            /* ブロック間（各ブロックに margin 2px 相当） */
   --pad: 12px;           /* 盤面の内側余白 */
 
@@ -22,7 +22,7 @@
   --mut2: #A89B82;
   --accent: #C2603C;
 
-  --r-block: 18px;
+  --r-block: 14px;
   --r-card: 16px;
   --r-board: 26px;
 
@@ -109,7 +109,7 @@ body {
   content: "";
   position: absolute;
   left: 50%; transform: translateX(-50%);
-  bottom: -1px; width: 22%; height: 11px;
+  bottom: -1px; width: 60%; height: 11px;
   background: var(--bg);
   border: 2px solid var(--line);
   border-top: none;
@@ -154,10 +154,23 @@ body {
 }
 .piece.wiggle { animation: wiggle 0.5s ease-in-out; }
 
-.piece.king  { background: var(--coral); box-shadow: 0 3px 0 var(--coral-edge), 0 6px 12px rgba(60,46,32,0.12); }
-.piece.tall  { background: var(--blue);  box-shadow: 0 3px 0 var(--blue-edge),  0 6px 12px rgba(60,46,32,0.12); }
-.piece.wide  { background: var(--green); box-shadow: 0 3px 0 var(--green-edge), 0 6px 12px rgba(60,46,32,0.12); }
-.piece.small { background: var(--sand);  box-shadow: 0 3px 0 var(--sand-edge),  0 6px 12px rgba(60,46,32,0.12); }
+.piece.c-coral { background: var(--coral); box-shadow: 0 3px 0 var(--coral-edge), 0 6px 12px rgba(60,46,32,0.12); }
+.piece.c-blue  { background: var(--blue);  box-shadow: 0 3px 0 var(--blue-edge),  0 6px 12px rgba(60,46,32,0.12); }
+.piece.c-green { background: var(--green); box-shadow: 0 3px 0 var(--green-edge), 0 6px 12px rgba(60,46,32,0.12); }
+.piece.c-sand  { background: var(--sand);  box-shadow: 0 3px 0 var(--sand-edge),  0 6px 12px rgba(60,46,32,0.12); }
+
+/* 出現（上から生まれる）・脱出（出口から出ていく） */
+@keyframes spawnIn { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.piece.spawning { animation: spawnIn 0.22s ease-out; }
+.piece.exiting {
+  transition: transform 0.26s ease-in, opacity 0.26s ease-in;
+  transform: translateY(140%) scale(0.9);
+  opacity: 0; pointer-events: none; z-index: 1;
+}
+
+/* スコア加算のポップ */
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
+.stat-value.pop { animation: pop 0.26s ease-out; }
 
 /* ボタン */
 .controls { display: flex; gap: 10px; width: 100%; }
@@ -205,6 +218,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .piece.snap { transition: none; }
-  .piece.settled, .piece.wiggle { animation: none; }
+  .piece.settled, .piece.wiggle, .piece.spawning, .stat-value.pop { animation: none; }
   .overlay-card { animation: none; }
 }
