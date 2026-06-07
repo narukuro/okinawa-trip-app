@@ -394,6 +394,7 @@ function stopDemo() {
 }
 function enableDebug() {
   if (debugOn) return; debugOn = true;
+  try { localStorage.setItem("akablock_debug", "1"); } catch (_) {}
   const panel = document.createElement("div");
   panel.className = "debug-panel";
   panel.innerHTML =
@@ -411,11 +412,17 @@ function enableDebug() {
   };
   document.getElementById("dbgHint").onclick = showHint;
   document.getElementById("dbgSolve").onclick = () => { if (demoRunning) stopDemo(); else runDemo(); };
-  document.getElementById("dbgClose").onclick = () => { stopDemo(); panel.remove(); debugOn = false; };
+  document.getElementById("dbgClose").onclick = () => {
+    stopDemo(); panel.remove(); debugOn = false;
+    try { localStorage.removeItem("akablock_debug"); } catch (_) {}
+    toast("デバッグモード OFF");
+  };
   toast("デバッグモード ON");
 }
 function setupDebug() {
-  if (new URLSearchParams(location.search).has("debug")) enableDebug();
+  let saved = false;
+  try { saved = localStorage.getItem("akablock_debug") === "1"; } catch (_) {}
+  if (new URLSearchParams(location.search).has("debug") || saved) enableDebug();
   const title = document.querySelector(".title");
   if (title) title.addEventListener("click", () => { if (++exitTaps >= 5) enableDebug(); });
 }
