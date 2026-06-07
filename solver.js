@@ -26,6 +26,15 @@
   }
   function clone(pieces) { return pieces.map((p) => ({ ...p })); }
 
+  // 空き判定（設置用）：その範囲が盤内かつ全セル空きか
+  function isEmptyArea(g, r, c, w, h) {
+    if (r < 0 || c < 0 || r + h > ROWS || c + w > COLS) return false;
+    for (let dr = 0; dr < h; dr++)
+      for (let dc = 0; dc < w; dc++)
+        if (g[r + dr][c + dc]) return false;
+    return true;
+  }
+
   function genMoves(pieces) {
     const out = [];
     const g = occ(pieces);
@@ -84,21 +93,23 @@
     return Infinity;
   }
 
-  const SHAPES = [{ w: 1, h: 1 }, { w: 1, h: 2 }, { w: 2, h: 1 }];
+  // 大きい駒を優先して詰めると難しくなりやすい
+  const SHAPES = [{ w: 1, h: 2 }, { w: 2, h: 1 }, { w: 1, h: 2 }, { w: 2, h: 1 }, { w: 1, h: 1 }];
   function rnd(n) { return Math.floor(Math.random() * n); }
 
-  function buildSolved(nb) {
+  // 空きセルが emptyTarget 以下になるまで駒を詰めた「解けた状態」を作る
+  function buildSolved(emptyTarget) {
     const pieces = [{ w: 2, h: 2, r: GOAL.r, c: GOAL.c, hero: true }];
-    let tries = 0;
-    while (pieces.filter((p) => !p.hero).length < nb && tries < 300) {
-      tries++;
+    const cap = 400;
+    for (let tries = 0; tries < cap; tries++) {
+      const area = pieces.reduce((a, p) => a + p.w * p.h, 0);
+      if (ROWS * COLS - area <= emptyTarget) break;
       const s = SHAPES[rnd(SHAPES.length)];
       const r = rnd(ROWS - s.h + 1), c = rnd(COLS - s.w + 1);
-      const cand = { ...s, r, c, hero: false };
-      if (freeAt(occ(pieces), r, c, s.w, s.h, cand)) pieces.push(cand);
+      if (isEmptyArea(occ(pieces), r, c, s.w, s.h)) pieces.push({ ...s, r, c, hero: false });
     }
     const area = pieces.reduce((a, p) => a + p.w * p.h, 0);
-    if (ROWS * COLS - area < 2) return null;
+    if (ROWS * COLS - area < 2) return null; // 動かす余地が無い
     return pieces;
   }
   function reverseShuffle(start, depth) {
@@ -112,17 +123,17 @@
     return cur;
   }
   function levelParams(level) {
-    const nb = Math.min(2 + Math.floor(level / 2), 9);
+    const emptyTarget = Math.max(2, 13 - level); // レベルが上がるほど盤を詰める
     const lo = 2 + level;
-    const hi = lo + 3 + Math.floor(level / 2);
-    const depth = hi + 6 + level;
-    return { nb, lo, hi, depth };
+    const hi = lo + 6 + level;
+    const depth = 30 + level * 6;
+    return { emptyTarget, lo, hi, depth };
   }
   function generateLevel(level) {
-    const { nb, lo, hi, depth } = levelParams(level);
+    const { emptyTarget, lo, hi, depth } = levelParams(level);
     let best = null, bestDiff = Infinity;
-    for (let a = 0; a < 80; a++) {
-      const solved = buildSolved(nb);
+    for (let a = 0; a < 60; a++) {
+      const solved = buildSolved(emptyTarget);
       if (!solved) continue;
       const cand = reverseShuffle(solved, depth);
       if (isGoal(cand)) continue;
