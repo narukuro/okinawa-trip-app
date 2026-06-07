@@ -304,6 +304,8 @@ function applyLevel(data, lv) {
   renderAll(false);
   scheduleIdle();
   prefetch(lv + 1); // 次レベルを裏で先読み
+  const di = document.getElementById("dbgLevel");
+  if (di && document.activeElement !== di) di.value = lv;
 }
 
 function startLevel(lv) {
@@ -324,6 +326,100 @@ function retryLevel() {
 
 function nextLevel() { startLevel(level + 1); }
 
+/* ---------- デバッグモード ---------- */
+
+let debugOn = false, demoRunning = false, exitTaps = 0;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function toast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("show"), 1900);
+}
+function solverState() {
+  return pieces.map((p) => ({ id: p.id, w: p.w, h: p.h, r: p.r, c: p.c, hero: p.hero }));
+}
+function applyState(st, animate) {
+  for (const sp of st) {
+    const p = pieces.find((x) => x.id === sp.id);
+    if (p) { p.r = sp.r; p.c = sp.c; place(p, animate); }
+  }
+}
+function showHint() {
+  if (busy || demoRunning) return;
+  const path = window.KL && window.KL.solvePath ? window.KL.solvePath(solverState()) : null;
+  if (path === null) { toast("このレベルは解けません…"); return; }
+  if (path.length === 0) { toast("もう脱出できる状態です！"); return; }
+  const nxt = path[0];
+  let moved = null, to = null;
+  for (const sp of nxt) {
+    const cur = pieces.find((p) => p.id === sp.id);
+    if (cur.r !== sp.r || cur.c !== sp.c) { moved = cur; to = sp; break; }
+  }
+  const dir = to.r < moved.r ? "↑" : to.r > moved.r ? "↓" : to.c < moved.c ? "←" : "→";
+  const el = els[moved.id];
+  if (el) {
+    el.classList.remove("hint"); void el.offsetWidth; el.classList.add("hint");
+    setTimeout(() => el.classList.remove("hint"), 1200);
+  }
+  toast(`ヒント：${dir} に動かそう（残り最短 ${path.length} 手）`);
+}
+async function runDemo() {
+  if (busy) return;
+  const path = window.KL && window.KL.solvePath ? window.KL.solvePath(solverState()) : null;
+  if (!path) { toast("このレベルは解けません…"); return; }
+  if (path.length === 0) { winLevel(); return; }
+  demoRunning = true; busy = true;
+  const btn = document.getElementById("dbgSolve"); if (btn) btn.textContent = "■ 停止";
+  for (const st of path) {
+    if (!demoRunning) break;
+    applyState(st, true);
+    moves++; movesEl.textContent = moves;
+    await sleep(380);
+  }
+  const wasRunning = demoRunning;
+  demoRunning = false;
+  if (btn) btn.textContent = "自動で解く";
+  const hero = pieces.find((p) => p.hero);
+  if (wasRunning && hero.r === GOAL.r && hero.c === GOAL.c) winLevel();
+  else busy = false;
+}
+function stopDemo() {
+  if (!demoRunning) return;
+  demoRunning = false; busy = false;
+  const btn = document.getElementById("dbgSolve"); if (btn) btn.textContent = "自動で解く";
+}
+function enableDebug() {
+  if (debugOn) return; debugOn = true;
+  const panel = document.createElement("div");
+  panel.className = "debug-panel";
+  panel.innerHTML =
+    '<div class="dbg-row"><span class="dbg-title">DEBUG</span>' +
+    'レベル <input id="dbgLevel" type="number" min="1" value="' + level + '" inputmode="numeric">' +
+    '<button class="dbg-btn" id="dbgJump">移動</button>' +
+    '<button class="dbg-btn dbg-x" id="dbgClose">×</button></div>' +
+    '<div class="dbg-row">' +
+    '<button class="dbg-btn" id="dbgHint">💡 ヒント</button>' +
+    '<button class="dbg-btn" id="dbgSolve">自動で解く</button></div>';
+  document.body.appendChild(panel);
+  document.getElementById("dbgJump").onclick = () => {
+    const n = parseInt(document.getElementById("dbgLevel").value, 10);
+    if (n >= 1) { stopDemo(); startLevel(n); }
+  };
+  document.getElementById("dbgHint").onclick = showHint;
+  document.getElementById("dbgSolve").onclick = () => { if (demoRunning) stopDemo(); else runDemo(); };
+  document.getElementById("dbgClose").onclick = () => { stopDemo(); panel.remove(); debugOn = false; };
+  toast("デバッグモード ON");
+}
+function setupDebug() {
+  if (new URLSearchParams(location.search).has("debug")) enableDebug();
+  const title = document.querySelector(".title");
+  if (title) title.addEventListener("click", () => { if (++exitTaps >= 5) enableDebug(); });
+}
+
 /* ---------- 入力 ---------- */
 
 document.getElementById("reset").addEventListener("click", retryLevel);
@@ -336,6 +432,7 @@ window.addEventListener("orientationchange", () => setTimeout(() => renderAll(fa
 window.addEventListener("load", () => renderAll(false));
 
 loadBest();
+setupDebug();
 startLevel(1);
 
 if ("serviceWorker" in navigator) {

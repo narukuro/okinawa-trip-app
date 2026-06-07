@@ -1,4 +1,4 @@
-const CACHE = "akablock-levels-v7";
+const CACHE = "akablock-levels-v8";
 const ASSETS = [
   "./",
   "./index.html",

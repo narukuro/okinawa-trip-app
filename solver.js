@@ -94,6 +94,37 @@
   }
 
   // 大きい駒を優先して詰めると難しくなりやすい
+  // 最短手順（各手後の状態の配列）を返す。解けなければ null。
+  function solvePath(start, cap = 200000) {
+    if (isGoal(start)) return [];
+    const startKey = hash(start);
+    const seen = new Set([startKey]);
+    const parent = new Map();
+    let frontier = [start], goalKey = null;
+    outer:
+    for (let d = 0; d < 200 && frontier.length; d++) {
+      const next = [];
+      for (const st of frontier) {
+        for (const m of genMoves(st)) {
+          const k = hash(m);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          parent.set(k, { prev: hash(st), state: m });
+          if (isGoal(m)) { goalKey = k; break outer; }
+          next.push(m);
+          if (seen.size > cap) return null;
+        }
+      }
+      frontier = next;
+    }
+    if (!goalKey) return null;
+    const path = [];
+    let k = goalKey;
+    while (k !== startKey) { const n = parent.get(k); path.push(n.state); k = n.prev; }
+    path.reverse();
+    return path;
+  }
+
   const SHAPES = [{ w: 1, h: 2 }, { w: 2, h: 1 }, { w: 1, h: 2 }, { w: 2, h: 1 }, { w: 1, h: 1 }];
   function rnd(n) { return Math.floor(Math.random() * n); }
 
@@ -151,7 +182,7 @@
   global.GOAL_KL = GOAL;
   global.generateKlotskiLevel = generateLevel;
   // テスト/デバッグ用に最小限のヘルパーを公開
-  global.KL = { genMoves, hash, isGoal, bfsMin, GOAL, COLS, ROWS };
+  global.KL = { genMoves, hash, isGoal, bfsMin, solvePath, GOAL, COLS, ROWS };
 
   // Worker として動いている場合はメッセージ対応
   if (typeof window === 'undefined' && typeof global.postMessage === 'function') {
