@@ -41,19 +41,19 @@ if (worker) {
   };
 }
 
-function computeLevel(lv, cb) {
+function computeLevel(lv, floor, cb) {
   if (cache[lv]) { cb(cache[lv]); return; }
   if (worker) {
     const id = ++reqId;
     waiters[id] = cb;
-    worker.postMessage({ type: "gen", level: lv, reqId: id });
+    worker.postMessage({ type: "gen", level: lv, floor: floor, reqId: id });
   } else {
     // フォールバック：メインスレッドで生成（solver.js を <script> で読込済み）
-    setTimeout(() => { const r = window.generateKlotskiLevel(lv); if (r) cache[lv] = r; cb(r); }, 10);
+    setTimeout(() => { const r = window.generateKlotskiLevel(lv, floor); if (r) cache[lv] = r; cb(r); }, 10);
   }
 }
 
-function prefetch(lv) { if (!cache[lv]) computeLevel(lv, () => {}); }
+function prefetch(lv, floor) { if (!cache[lv]) computeLevel(lv, floor, () => {}); }
 
 /* ---------- 盤面ユーティリティ ---------- */
 
@@ -303,20 +303,23 @@ function applyLevel(data, lv) {
   overlay.hidden = true;
   renderAll(false);
   scheduleIdle();
-  prefetch(lv + 1); // 次レベルを裏で先読み
+  prefetch(lv + 1, par); // 次レベルを裏で先読み（floor=今回の手数 → 必ず今回以上に）
   const di = document.getElementById("dbgLevel");
   if (di && document.activeElement !== di) di.value = lv;
 }
 
-function startLevel(lv, attempt) {
-  attempt = attempt || 0;
+// floor=前レベルの手数。生成結果が floor 未満（＝簡単になってしまう）なら採用せずやり直す。
+function startLevel(lv, floor, attempt) {
+  attempt = attempt || 0; floor = floor || 0;
   overlay.hidden = true;
-  if (cache[lv]) { applyLevel(cache[lv], lv); return; }
+  if (cache[lv] && cache[lv].par >= floor) { applyLevel(cache[lv], lv); return; }
+  if (cache[lv]) delete cache[lv]; // floor を満たさないキャッシュは破棄
   showLoading(true);
   busy = true;
-  computeLevel(lv, (data) => {
-    if (data) { showLoading(false); applyLevel(data, lv); }
-    else if (attempt < 6) { startLevel(lv, attempt + 1); }   // 生成失敗→自動リトライ
+  computeLevel(lv, floor, (data) => {
+    if (data && data.par >= floor) { showLoading(false); applyLevel(data, lv); }
+    else if (attempt < 8) { delete cache[lv]; startLevel(lv, floor, attempt + 1); } // ①死守：やり直し
+    else if (data) { showLoading(false); applyLevel(data, lv); } // 最終手段（盤の限界）
     else { showLoading(false); busy = false; toast("生成に失敗しました。もう一度お試しください"); }
   });
 }
@@ -326,7 +329,7 @@ function retryLevel() {
   applyLevel({ pieces: initialPieces.map((p) => ({ ...p })), par }, level);
 }
 
-function nextLevel() { startLevel(level + 1); }
+function nextLevel() { startLevel(level + 1, par); } // floor=クリアしたレベルの手数
 
 /* ---------- デバッグモード ---------- */
 
@@ -410,7 +413,7 @@ function enableDebug() {
   document.body.appendChild(panel);
   document.getElementById("dbgJump").onclick = () => {
     const n = parseInt(document.getElementById("dbgLevel").value, 10);
-    if (n >= 1) { stopDemo(); startLevel(n); }
+    if (n >= 1) { stopDemo(); delete cache[n]; startLevel(n, 0); } // デバッグ移動はfloor制約なし
   };
   document.getElementById("dbgHint").onclick = showHint;
   document.getElementById("dbgSolve").onclick = () => { if (demoRunning) stopDemo(); else runDemo(); };
@@ -442,7 +445,7 @@ window.addEventListener("load", () => renderAll(false));
 
 loadBest();
 setupDebug();
-startLevel(1);
+startLevel(1, 0);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

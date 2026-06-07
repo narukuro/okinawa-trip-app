@@ -155,37 +155,54 @@
   }
   // 目標手数の「目安」：レベルが上がるほど大きく（上限で頭打ち）。
   // ぴったりでなくてOK。実際の最短手数は生成後にBFSで確定して表示する。
-  const MAX_PAR = 16;
+  // par はこの値を超えない（floor が暴走しないための上限）。4×5盤で「ぴったり」を
+  // 安定再現できる範囲に設定 → 据え置き(plateau)が持続でき、絶対に減少しない。
+  const MAX_PAR = 13;
   function targetForLevel(level) {
     return Math.min(MAX_PAR, 2 + level);
   }
 
-  // ランダム生成＋最短手数(BFS)で、目安手数に近いパズルを高速に探す。
-  // 目安ぴったりがあれば即採用、無ければ最も近いもの（やや上を優先）を採用。
-  function generateLevel(level) {
-    const target = targetForLevel(level);
+  // 【絶対条件】
+  //  ① レベルが上がると難しくなる … par は floor（前レベルの手数）以上、かつ MAX_PAR 以下。
+  //     上限を超える盤は採らない（floor暴走防止）→ 減少が起きない。
+  //  ② 表示手数で本当に解ける    … 返す par は bfsMin（実測の最短手数）そのもの。
+  function generateLevel(aim, floor) {
+    floor = floor || 0;
+    const target = Math.min(MAX_PAR, Math.max(aim, floor));
     const emptyTarget = Math.max(2, Math.min(11, 12 - target)); // 手数が多いほど盤を詰める
     const depth = 24 + target * 4;
     const t0 = Date.now();
-    let best = null, bestDiff = Infinity;
-    for (let a = 0; a < 600 && Date.now() - t0 < 1000; a++) {
+    let bestValid = null, bvDiff = Infinity;  // floor<=par<=MAX_PAR で target に最も近い
+    let bestLE = null, blDiff = Infinity;     // par<=MAX_PAR（保険：floor未満も可）
+    for (let a = 0; a < 1000 && Date.now() - t0 < 1500; a++) {
       const solved = buildSolved(emptyTarget);
       if (!solved) continue;
       const cand = reverseShuffle(solved, depth);
       if (isGoal(cand)) continue;
       const min = bfsMin(cand);
       if (!isFinite(min)) continue;
+      if (min > MAX_PAR) continue;            // 上限超は捨てる（floor暴走防止）
+      const d = Math.abs(min - target);
+      if (d < blDiff) { blDiff = d; bestLE = { pieces: cand, par: min }; }
+      if (min < floor) continue;              // ① 前レベル未満は不採用
       if (min === target) return { pieces: cand, par: min };
-      const diff = min < target ? (target - min) * 2 : (min - target); // 簡単すぎる側を少し減点
-      if (diff < bestDiff) { bestDiff = diff; best = { pieces: cand, par: min }; }
+      if (d < bvDiff) { bvDiff = d; bestValid = { pieces: cand, par: min }; }
     }
-    return best;
+    // floor<=par<=MAX_PAR を最優先。極稀に無ければ最も近いもの（最終保険）。
+    return bestValid || bestLE;
+  }
+
+  // レベル番号＋前レベルの手数(floor)から生成。少なくとも floor+1 を狙いつつ floor は死守。
+  function generateForLevel(level, floor) {
+    floor = floor || 0;
+    const aim = Math.max(targetForLevel(level), Math.min(MAX_PAR, floor + 1));
+    return generateLevel(aim, floor);
   }
 
   global.COLS_KL = COLS;
   global.ROWS_KL = ROWS;
   global.GOAL_KL = GOAL;
-  global.generateKlotskiLevel = generateLevel;
+  global.generateKlotskiLevel = generateForLevel;
   // テスト/デバッグ用に最小限のヘルパーを公開
   global.KL = { genMoves, hash, isGoal, bfsMin, solvePath, GOAL, COLS, ROWS };
 
@@ -194,7 +211,7 @@
     global.onmessage = (e) => {
       const d = e.data || {};
       if (d.type === 'gen') {
-        const res = generateLevel(d.level);
+        const res = generateForLevel(d.level, d.floor || 0);
         global.postMessage({ type: 'level', level: d.level, reqId: d.reqId, data: res });
       }
     };
