@@ -1,4 +1,4 @@
-const CACHE = "akablock-levels-v6";
+const CACHE = "akablock-levels-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -25,9 +25,17 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// ネットワーク優先：オンラインなら常に最新を取得し、キャッシュも更新。
+// 取得できない（オフライン等）ときだけキャッシュにフォールバック。
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        return res;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
