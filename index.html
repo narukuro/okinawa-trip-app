@@ -19,17 +19,17 @@
   <div class="app">
     <header class="topbar">
       <h1 class="title">あかブロック脱出</h1>
-      <p class="subtitle">下の出口からブロックを出そう！出すほどスコアアップ</p>
+      <p class="subtitle" id="subtitle">赤いブロックを下の出口へ動かそう</p>
     </header>
 
     <div class="stats">
       <div class="stat">
-        <span class="stat-label">スコア</span>
-        <span class="stat-value accent" id="moves">0</span>
+        <span class="stat-label">レベル</span>
+        <span class="stat-value accent" id="level">1</span>
       </div>
       <div class="stat">
-        <span class="stat-label">タイム</span>
-        <span class="stat-value" id="timer">00:00</span>
+        <span class="stat-label">手数</span>
+        <span class="stat-value" id="moves">0</span>
       </div>
       <div class="stat">
         <span class="stat-label">ベスト</span>
@@ -45,23 +45,21 @@
     </div>
 
     <div class="controls">
-      <button class="btn" id="reset">最初から</button>
+      <button class="btn" id="reset">やりなおし</button>
       <button class="btn btn-ghost" id="howto">遊び方</button>
     </div>
 
-    <footer class="foot">指でブロックをスライド、下の出口から出そう</footer>
+    <footer class="foot">指でブロックをスライド、赤を下の出口へ</footer>
   </div>
 
-  <!-- ゲームオーバー -->
+  <!-- レベルクリア -->
   <div class="overlay" id="winOverlay" hidden>
     <div class="overlay-card">
-      <div class="overlay-emoji">🎯</div>
-      <h2>ゲームオーバー</h2>
-      <p class="overlay-stats">
-        スコア <span id="winMoves">0</span> ／ タイム <span id="winTime">00:00</span>
-      </p>
+      <div class="overlay-stars" id="winStars">★★★</div>
+      <h2 id="winTitle">レベル クリア！</h2>
+      <p class="overlay-stats" id="winInfo"></p>
       <p class="overlay-note" id="winNote"></p>
-      <button class="btn" id="playAgain">もう一度</button>
+      <button class="btn" id="playAgain">次のレベル →</button>
     </div>
   </div>
 
@@ -70,15 +68,16 @@
     <div class="overlay-card overlay-left">
       <h2>遊び方</h2>
       <ul class="howto-list">
-        <li>盤の<b>下・中央の出口</b>へブロックをスライドさせて<b>外に出す</b>とスコア+1。</li>
-        <li>出すたびに<b>新しいブロックが上から誕生</b>。時間とともにも増えていきます。</li>
-        <li>端のブロックは中央に寄せてから出口へ送り出しましょう。</li>
-        <li><b>上の段がいっぱいになるとゲームオーバー</b>。ハイスコアを目指そう！</li>
+        <li>大きな<b>赤いブロック（2×2）</b>を盤の<b>下・中央の出口</b>まで動かすとクリアです。</li>
+        <li>ブロックは空いているマスの方向へ<b>指でスライド</b>。盤の外には出せません。</li>
+        <li>クリアするたびに<b>レベルが上がり、どんどん難しく</b>なります。</li>
+        <li><b>目標手数（最少手数）</b>以内で解けると<b>★3つ</b>。少ない手数を目指そう！</li>
       </ul>
       <button class="btn" id="howClose">とじる</button>
     </div>
   </div>
 
+  <script src="solver.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 :root {
-  --board-cols: 5;
-  --board-rows: 6;
+  --board-cols: 4;
+  --board-rows: 5;
   --gap: 4px;            /* ブロック間（各ブロックに margin 2px 相当） */
   --pad: 12px;           /* 盤面の内側余白 */
 
@@ -22,7 +22,7 @@
   --mut2: #A89B82;
   --accent: #C2603C;
 
-  --r-block: 14px;
+  --r-block: 18px;
   --r-card: 16px;
   --r-board: 26px;
 
@@ -109,7 +109,7 @@ body {
   content: "";
   position: absolute;
   left: 50%; transform: translateX(-50%);
-  bottom: -1px; width: 60%; height: 11px;
+  bottom: -1px; width: 50%; height: 11px;
   background: var(--bg);
   border: 2px solid var(--line);
   border-top: none;
@@ -171,6 +171,28 @@ body {
 /* スコア加算のポップ */
 @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
 .stat-value.pop { animation: pop 0.26s ease-out; }
+
+/* 主役（赤）をひと目で分かるように */
+.piece.hero::after {
+  content: ""; position: absolute; inset: 6px;
+  border: 2.5px dashed rgba(255,255,255,0.55);
+  border-radius: calc(var(--r-block) - 6px);
+  pointer-events: none;
+}
+
+/* レベル生成中の表示 */
+.loading {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  color: var(--mut); font-weight: 700; font-size: 15px;
+}
+
+/* クリア演出の星 */
+.overlay-stars {
+  font-size: 40px; line-height: 1; letter-spacing: 4px;
+  color: var(--sand); text-shadow: 0 2px 0 var(--sand-edge);
+  margin-bottom: 6px;
+}
 
 /* ボタン */
 .controls { display: flex; gap: 10px; width: 100%; }

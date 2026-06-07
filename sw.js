@@ -1,9 +1,10 @@
-const CACHE = "akablock-endless-v5";
+const CACHE = "akablock-levels-v6";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./solver.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
