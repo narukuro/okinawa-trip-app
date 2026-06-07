@@ -153,25 +153,30 @@
     }
     return cur;
   }
-  function levelParams(level) {
-    const emptyTarget = Math.max(2, 13 - level); // レベルが上がるほど盤を詰める
-    const lo = 2 + level;
-    const hi = lo + 6 + level;
-    const depth = 30 + level * 6;
-    return { emptyTarget, lo, hi, depth };
+  // 目標手数の「目安」：レベルが上がるほど大きく（上限で頭打ち）。
+  // ぴったりでなくてOK。実際の最短手数は生成後にBFSで確定して表示する。
+  const MAX_PAR = 16;
+  function targetForLevel(level) {
+    return Math.min(MAX_PAR, 2 + level);
   }
+
+  // ランダム生成＋最短手数(BFS)で、目安手数に近いパズルを高速に探す。
+  // 目安ぴったりがあれば即採用、無ければ最も近いもの（やや上を優先）を採用。
   function generateLevel(level) {
-    const { emptyTarget, lo, hi, depth } = levelParams(level);
+    const target = targetForLevel(level);
+    const emptyTarget = Math.max(2, Math.min(11, 12 - target)); // 手数が多いほど盤を詰める
+    const depth = 24 + target * 4;
+    const t0 = Date.now();
     let best = null, bestDiff = Infinity;
-    for (let a = 0; a < 60; a++) {
+    for (let a = 0; a < 600 && Date.now() - t0 < 1000; a++) {
       const solved = buildSolved(emptyTarget);
       if (!solved) continue;
       const cand = reverseShuffle(solved, depth);
       if (isGoal(cand)) continue;
       const min = bfsMin(cand);
       if (!isFinite(min)) continue;
-      if (min >= lo && min <= hi) return { pieces: cand, par: min };
-      const diff = min < lo ? (lo - min) * 3 : (min - hi); // 簡単側へのズレを強く減点
+      if (min === target) return { pieces: cand, par: min };
+      const diff = min < target ? (target - min) * 2 : (min - target); // 簡単すぎる側を少し減点
       if (diff < bestDiff) { bestDiff = diff; best = { pieces: cand, par: min }; }
     }
     return best;

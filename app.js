@@ -49,7 +49,7 @@ function computeLevel(lv, cb) {
     worker.postMessage({ type: "gen", level: lv, reqId: id });
   } else {
     // フォールバック：メインスレッドで生成（solver.js を <script> で読込済み）
-    setTimeout(() => { const r = window.generateKlotskiLevel(lv); cache[lv] = r; cb(r); }, 10);
+    setTimeout(() => { const r = window.generateKlotskiLevel(lv); if (r) cache[lv] = r; cb(r); }, 10);
   }
 }
 
@@ -308,14 +308,16 @@ function applyLevel(data, lv) {
   if (di && document.activeElement !== di) di.value = lv;
 }
 
-function startLevel(lv) {
+function startLevel(lv, attempt) {
+  attempt = attempt || 0;
   overlay.hidden = true;
   if (cache[lv]) { applyLevel(cache[lv], lv); return; }
   showLoading(true);
   busy = true;
   computeLevel(lv, (data) => {
-    showLoading(false);
-    if (data) applyLevel(data, lv);
+    if (data) { showLoading(false); applyLevel(data, lv); }
+    else if (attempt < 6) { startLevel(lv, attempt + 1); }   // 生成失敗→自動リトライ
+    else { showLoading(false); busy = false; toast("生成に失敗しました。もう一度お試しください"); }
   });
 }
 
